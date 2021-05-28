@@ -1,6 +1,5 @@
 
 
-
 def fibonacci(n):
     arr = [0, 1] + [0] * (n - 1)
 

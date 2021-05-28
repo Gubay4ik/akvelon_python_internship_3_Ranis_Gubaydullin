@@ -8,6 +8,7 @@ app = Flask(__name__)
 def hello():
     return "Hello!"
 
+#create user information, gets firstname, lastname and email
 @app.route('/user/create/')
 def create_user():
     firstname = request.args.get("firstname")
@@ -26,8 +27,9 @@ def create_user():
         connection.close()
         return "ok"
 
-@app.route('/user/view/<id>')
-def view_user(id):
+#filter users info
+@app.route('/user/view')
+def view_user():
     sort = request.args.get("sort") #firstname, lastname
 
     if sort == None:
@@ -36,7 +38,7 @@ def view_user(id):
     try:
         connection = get_connection(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
         cursor = connection.cursor()
-        cursor.execute("SELECT * FROM `users` WHERE `id` = '{0}' ORDER BY {1}".format(id, sort))
+        cursor.execute("SELECT * FROM `users` ORDER BY `{0}`".format(sort))
         result = cursor.fetchall()
     except Error as e:
         print(e)
@@ -45,7 +47,23 @@ def view_user(id):
         connection.close()
         return jsonify(result)
 
+#get user info by id
+@app.route("/user/view/<id>")
+def view_user(id):
+    try:
+        connection = get_connection(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM `users` WHERE `id` = '{0}'".format(id))
+        result = cursor.fetchall()
+    except Error as e:
+        print(e)
+        return "Error", 500
+    finally:
+        connection.close()
+        return jsonify(result)
 
+#edit user's information by user id
+#you MUST redeclare all fields
 @app.route('/user/edit/<id>')
 def edit_user(id):
     firstname = request.args.get("firstname")
@@ -64,6 +82,7 @@ def edit_user(id):
         connection.close()
     return "ok"
 
+#deletes user by id
 @app.route('/user/delete/<id>')
 def delete_user(id):
     try:
@@ -77,6 +96,7 @@ def delete_user(id):
         connection.close()
         return "ok"
 
+#Create transaction, get user_id, amount, date as arguments
 @app.route('/transaction/create/')
 def create_transaction():
     user_id = request.args.get("user_id")
@@ -96,8 +116,9 @@ def create_transaction():
         connection.close()
         return "ok"
 
-@app.route('/transaction/view/<id>')
-def view_transaction(id):
+#filter transactions data
+@app.route('/transaction/view')
+def view_transaction():
     sort = request.args.get("sort") #date, amount
     type = request.args.get("type")
     date = request.args.get("date")
@@ -108,19 +129,21 @@ def view_transaction(id):
     #might look like some black magic
     #Depending on client input, generating substring to insert to sql query
     if type == "income":
-        type = "and `amount` > '0'"
+        type = "`amount` > '0'"
     elif type == "outcome":
-        type = "and `amount` < '0'"
+        type = "`amount` < '0'"
     else:
         type = ""
 
     if date==None:
         date = ""
+    else:
+        date = (type != "" if " and " else "") + "`date` = '" + date + "'"
 
     try:
         connection = get_connection(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
         cursor = connection.cursor()
-        cursor.execute("SELECT * FROM `transactions` WHERE `id` = '{0}' {1} {2} ORDER BY {3}".format(id, type, date, sort))
+        cursor.execute("SELECT * FROM `transactions` WHERE {0} {1} ORDER BY {2}".format(type, date, sort))
         result = cursor.fetchall()
     except Error as e:
         print(e)
@@ -129,6 +152,8 @@ def view_transaction(id):
         connection.close()
         return jsonify(result)
 
+#edit transaction by id
+#you MUST redeclare all fields
 @app.route('/transaction/edit/<id>')
 def edit_transaction(id):
     user_id = request.args.get("user_id")
@@ -148,6 +173,7 @@ def edit_transaction(id):
         connection.close()
     return "ok"
 
+#Delete transaction from base by id
 @app.route('/transaction/delete/<id>')
 def delete_transaction(id):
     try:
@@ -161,6 +187,7 @@ def delete_transaction(id):
         connection.close()
         return "ok"
 
+#Returns all user's payments
 @app.route('/user/payments/<id>')
 def user_payments(id):
     try:
@@ -175,6 +202,7 @@ def user_payments(id):
         connection.close()
         return jsonify(result)
 
+#returns user's income by userid
 @app.route('/user/income/<id>')
 def user_income(id):
     start = request.args.get("start")
@@ -205,6 +233,7 @@ def user_income(id):
         else:
             return jsonify({'income': str(result), 'start': start, 'end': end})
 
+#return users outcome by userid
 @app.route('/user/outcome/<id>')
 def user_outcome(id):
     start = request.args.get("start")
@@ -239,7 +268,7 @@ def user_outcome(id):
 if __name__ == '__main__':
     app.run(host="0.0.0.0")
 
-
+#Returns connection to mysql server
 def get_connection(host, user, password, db):
     return connect(
         host=host,
